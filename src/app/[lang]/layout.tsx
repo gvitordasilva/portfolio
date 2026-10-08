@@ -34,14 +34,14 @@ export function generateStaticParams() {
 // Qualquer segmento fora de /pt e /en vira 404.
 export const dynamicParams = false;
 
-type Params = Promise<{ lang: Locale }>;
+type Params = Promise<{ lang: string }>;
 
 export async function generateMetadata({
   params,
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const { lang } = await params;
+  const { lang } = (await params) as { lang: Locale };
   const title = `${profile.name} — ${profile.role[lang]}`;
   const description = profile.subheadline[lang];
 
@@ -92,7 +92,7 @@ export default async function RootLayout({
   children: React.ReactNode;
   params: Params;
 }) {
-  const { lang } = await params;
+  const { lang } = (await params) as { lang: Locale };
 
   const jsonLd = {
     "@context": "https://schema.org",
