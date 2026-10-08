@@ -2,23 +2,18 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { LangProvider } from "@/lib/i18n";
+import { Providers } from "@/components/providers";
+import { IslandNav } from "@/components/nav/IslandNav";
+import { AppDock } from "@/components/nav/AppDock";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Shortcuts } from "@/components/system/Shortcuts";
+import { AskMe } from "@/components/chat/AskMe";
 import { locales, type Locale } from "@/lib/locales";
 import { profile } from "@/lib/content";
 import "../globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
-
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 const serif = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
@@ -31,31 +26,28 @@ export function generateStaticParams() {
   return locales.map((lang) => ({ lang }));
 }
 
-// Qualquer segmento fora de /pt e /en vira 404.
 export const dynamicParams = false;
 
 type Params = Promise<{ lang: string }>;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Params;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { lang } = (await params) as { lang: Locale };
   const title = `${profile.name} — ${profile.role[lang]}`;
   const description = profile.subheadline[lang];
 
   return {
     metadataBase: new URL(profile.siteUrl),
-    title,
+    title: { default: title, template: `%s · ${profile.name}` },
     description,
     keywords: [
       lang === "pt" ? "desenvolvedor full stack" : "full stack developer",
       "Java",
       "Spring Boot",
       "React",
+      "Next.js",
       "Angular",
       "TypeScript",
+      "SaaS",
       profile.name,
     ],
     authors: [{ name: profile.name, url: profile.github }],
@@ -71,16 +63,8 @@ export async function generateMetadata({
       siteName: profile.name,
       locale: lang === "pt" ? "pt_BR" : "en_US",
       type: "website",
-      images: [
-        { url: `/og/og-${lang}.png`, width: 1200, height: 630, alt: title },
-      ],
     },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [`/og/og-${lang}.png`],
-    },
+    twitter: { card: "summary_large_image", title, description },
     robots: { index: true, follow: true },
   };
 }
@@ -108,14 +92,21 @@ export default async function RootLayout({
   return (
     <html
       lang={lang === "pt" ? "pt-BR" : "en"}
-      className={`${inter.variable} ${mono.variable} ${serif.variable}`}
+      className={`${inter.variable} ${mono.variable} ${serif.variable} dark`}
+      suppressHydrationWarning
     >
-      <body>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <LangProvider initial={lang}>{children}</LangProvider>
+      <head>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      </head>
+      <body className="grain">
+        <Providers lang={lang}>
+          <IslandNav />
+          {children}
+          <AppDock />
+          <AskMe />
+          <CommandPalette />
+          <Shortcuts />
+        </Providers>
         <Analytics />
         <SpeedInsights />
       </body>

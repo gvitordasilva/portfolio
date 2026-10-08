@@ -30,7 +30,11 @@ const COOKIE_KEY = "portfolio-lang";
 function persist(l: Locale) {
   document.documentElement.lang = l === "pt" ? "pt-BR" : "en";
   document.cookie = `${COOKIE_KEY}=${l};path=/;max-age=31536000;samesite=lax`;
-  window.history.replaceState(null, "", `/${l}${window.location.hash}`);
+  // Troca só o segmento de idioma, preservando o resto do caminho (/pt/work/x → /en/work/x).
+  const { pathname, search, hash } = window.location;
+  const rest = pathname.replace(/^\/(pt|en)(?=\/|$)/, "");
+  const next = `/${l}${rest}${search}${hash}`;
+  if (next !== `${pathname}${search}${hash}`) window.history.replaceState(null, "", next);
 }
 
 export function LangProvider({

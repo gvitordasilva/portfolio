@@ -1,13 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { useLang } from "@/lib/i18n";
 import { profile, ui, t } from "@/lib/content";
+import { nav, caseStudies, ui2, tr } from "@/lib/site";
+import { nextPalette } from "@/components/shader/shader-store";
 
 type Item = {
   id: string;
-  group: "navigate" | "actions";
+  group: string;
   label: string;
   hint?: string;
   run: () => void | Promise<void>;
@@ -19,48 +24,81 @@ function normalize(s: string) {
 
 export function CommandPalette() {
   const { lang, toggle } = useLang();
+  const { resolvedTheme, setTheme } = useTheme();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
-  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
     setIndex(0);
-    setCopied(false);
   }, []);
 
   const items = useMemo<Item[]>(() => {
-    const nav = (["about", "skills", "projects", "experience", "services", "testimonials", "contact"] as const).map(
-      (id, i) => ({
-        id,
-        group: "navigate" as const,
-        label: t(ui.nav[id], lang),
-        hint: `0${i + 1}`,
-        run: () => {
-          close();
-          document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-        },
-      })
-    );
+    const goSection = (id: string) => {
+      close();
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      else router.push(`/${lang}#${id}`);
+    };
+
+    const navItems: Item[] = nav.map((n, i) => ({
+      id: `nav-${n.id}`,
+      group: t(ui.palette.navigate, lang),
+      label: tr(n.label, lang),
+      hint: `0${i + 1}`,
+      run: () => goSection(n.id),
+    }));
+
+    const cases: Item[] = caseStudies.map((c) => ({
+      id: `case-${c.slug}`,
+      group: tr(ui2.work.eyebrow, lang),
+      label: c.title,
+      hint: tr(c.subtitle, lang),
+      run: () => {
+        close();
+        router.push(`/${lang}/work/${c.slug}`);
+      },
+    }));
 
     const actions: Item[] = [
       {
         id: "copy-email",
-        group: "actions",
-        label: copied ? t(ui.palette.copied, lang) : t(ui.palette.copyEmail, lang),
+        group: t(ui.palette.actions, lang),
+        label: t(ui.palette.copyEmail, lang),
         hint: profile.email,
         run: async () => {
           await navigator.clipboard.writeText(profile.email);
-          setCopied(true);
-          setTimeout(close, 900);
+          toast(t(ui.palette.copied, lang));
+          close();
+        },
+      },
+      {
+        id: "resume",
+        group: t(ui.palette.actions, lang),
+        label: tr(ui2.resume.title, lang),
+        hint: "/resume",
+        run: () => {
+          close();
+          router.push(`/${lang}/resume`);
+        },
+      },
+      {
+        id: "theme",
+        group: t(ui.palette.actions, lang),
+        label: tr(ui2.dock.theme, lang),
+        hint: resolvedTheme === "dark" ? "light" : "dark",
+        run: () => {
+          setTheme(resolvedTheme === "dark" ? "light" : "dark");
+          close();
         },
       },
       {
         id: "lang",
-        group: "actions",
+        group: t(ui.palette.actions, lang),
         label: t(ui.palette.switchLang, lang),
         hint: lang === "pt" ? "EN" : "PT",
         run: () => {
@@ -69,81 +107,86 @@ export function CommandPalette() {
         },
       },
       {
-        id: "github",
-        group: "actions",
-        label: t(ui.palette.openGithub, lang),
-        hint: "↗",
+        id: "present",
+        group: t(ui.palette.actions, lang),
+        label: lang === "pt" ? "Modo apresentação" : "Presentation mode",
+        hint: "P",
         run: () => {
-          window.open(profile.github, "_blank", "noopener,noreferrer");
+          document.documentElement.classList.toggle("presenting");
+          close();
+        },
+      },
+      {
+        id: "shader",
+        group: t(ui.palette.actions, lang),
+        label: lang === "pt" ? "Remixar shader" : "Remix shader",
+        hint: "↑↑↓↓←→←→BA",
+        run: () => {
+          nextPalette();
+          close();
+        },
+      },
+      {
+        id: "github",
+        group: t(ui.palette.actions, lang),
+        label: t(ui.palette.openGithub, lang),
+        hint: "github.com/gvitordasilva",
+        run: () => {
+          window.open(profile.github, "_blank", "noopener");
           close();
         },
       },
       {
         id: "linkedin",
-        group: "actions",
+        group: t(ui.palette.actions, lang),
         label: t(ui.palette.openLinkedin, lang),
-        hint: "↗",
         run: () => {
-          window.open(profile.linkedin, "_blank", "noopener,noreferrer");
+          window.open(profile.linkedin, "_blank", "noopener");
           close();
         },
       },
       {
         id: "whatsapp",
-        group: "actions",
+        group: t(ui.palette.actions, lang),
         label: t(ui.palette.openWhatsapp, lang),
-        hint: "↗",
         run: () => {
-          window.open(`https://wa.me/${profile.whatsapp}`, "_blank", "noopener,noreferrer");
+          window.open(`https://wa.me/${profile.whatsapp}`, "_blank", "noopener");
           close();
         },
       },
     ];
 
-    return [...nav, ...actions];
-  }, [lang, copied, close, toggle]);
+    return [...navItems, ...cases, ...actions];
+  }, [lang, close, router, toggle, resolvedTheme, setTheme]);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return items;
-    const q = normalize(query);
-    return items.filter((i) => normalize(i.label).includes(q));
+    const q = normalize(query.trim());
+    if (!q) return items;
+    return items.filter((i) => normalize(`${i.label} ${i.hint ?? ""} ${i.group}`).includes(q));
   }, [items, query]);
 
-  // Atalho global Ctrl/⌘+K + evento disparado pelo botão do nav.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setOpen((o) => !o);
       }
       if (e.key === "Escape") close();
-    }
-    function onOpenEvent() {
-      setOpen(true);
-    }
+    };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    window.addEventListener("open-palette", onOpenEvent);
+    window.addEventListener("palette:open", onOpen);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("open-palette", onOpenEvent);
+      window.removeEventListener("palette:open", onOpen);
     };
   }, [close]);
 
   useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    if (open) setTimeout(() => inputRef.current?.focus(), 30);
   }, [open]);
 
-  useEffect(() => setIndex(0), [query]);
-
-  function onInputKey(e: React.KeyboardEvent) {
+  const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setIndex((i) => Math.min(i + 1, filtered.length - 1));
@@ -154,84 +197,78 @@ export function CommandPalette() {
       e.preventDefault();
       filtered[index]?.run();
     }
-  }
+  };
 
-  const groups: { key: Item["group"]; label: string }[] = [
-    { key: "navigate", label: t(ui.palette.navigate, lang) },
-    { key: "actions", label: t(ui.palette.actions, lang) },
-  ];
+  const groups = useMemo(() => {
+    const map = new Map<string, Item[]>();
+    filtered.forEach((i) => map.set(i.group, [...(map.get(i.group) ?? []), i]));
+    return [...map.entries()];
+  }, [filtered]);
+
+  let flat = -1;
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-background/60 p-4 pt-[12vh] backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[100] bg-bg/70 backdrop-blur-sm"
           onClick={close}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -8 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            role="dialog"
+            aria-modal
+            initial={{ opacity: 0, y: -12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className="glass w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
-            className="mx-auto mt-[18vh] w-[min(560px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-surface shadow-glow"
           >
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onInputKey}
-              placeholder={t(ui.palette.placeholder, lang)}
-              className="w-full border-b border-border bg-transparent px-5 py-4 text-sm text-text placeholder:text-faint outline-none"
-            />
-            <div className="max-h-[46vh] overflow-y-auto p-2">
-              {filtered.length === 0 && (
-                <p className="px-3 py-6 text-center text-sm text-faint">
-                  {t(ui.palette.empty, lang)}
-                </p>
-              )}
-              {groups.map((g) => {
-                const groupItems = filtered.filter((i) => i.group === g.key);
-                if (groupItems.length === 0) return null;
-                return (
-                  <div key={g.key} className="mb-1">
-                    <p className="mono px-3 pb-1 pt-2 text-[10px] uppercase tracking-widest text-faint">
-                      {g.label}
-                    </p>
-                    {groupItems.map((item) => {
-                      const i = filtered.indexOf(item);
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => item.run()}
-                          onMouseEnter={() => setIndex(i)}
-                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                            i === index
-                              ? "bg-accent-soft text-accent"
-                              : "text-muted"
-                          }`}
-                        >
-                          {item.label}
-                          {item.hint && (
-                            <span className="mono text-xs text-faint">
-                              {item.hint}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+            <div className="flex items-center gap-3 border-b border-border px-4">
+              <span className="mono text-xs text-brand">⌘K</span>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setIndex(0);
+                }}
+                onKeyDown={onKeyDown}
+                placeholder={t(ui.palette.placeholder, lang)}
+                className="h-14 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
+              />
+              <kbd className="mono rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">ESC</kbd>
             </div>
-            <div className="mono flex items-center gap-4 border-t border-border px-5 py-2.5 text-[10px] text-faint">
-              <span>↑↓</span>
-              <span>↵</span>
-              <span>esc</span>
+            <div className="max-h-[50vh] overflow-y-auto p-2">
+              {groups.length === 0 && (
+                <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t(ui.palette.empty, lang)}</p>
+              )}
+              {groups.map(([group, list]) => (
+                <div key={group} className="mb-1">
+                  <p className="mono px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{group}</p>
+                  {list.map((item) => {
+                    flat += 1;
+                    const i = flat;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onMouseEnter={() => setIndex(i)}
+                        onClick={() => item.run()}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+                          i === index ? "bg-brand/15 text-foreground" : "text-foreground/80 hover:bg-muted"
+                        }`}
+                      >
+                        <span>{item.label}</span>
+                        {item.hint && <span className="mono ml-4 truncate text-[11px] text-muted-foreground">{item.hint}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </motion.div>
         </motion.div>

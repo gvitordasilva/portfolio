@@ -1,31 +1,27 @@
-import { Nav } from "@/components/Nav";
-import { Hero } from "@/components/Hero";
-import { About } from "@/components/About";
-import { Skills } from "@/components/Skills";
-import { Projects } from "@/components/Projects";
-import { Experience } from "@/components/Experience";
-import { Services } from "@/components/Services";
-import { Testimonials } from "@/components/Testimonials";
-import { Contact } from "@/components/Contact";
-import { Footer } from "@/components/Footer";
-import { CommandPalette } from "@/components/CommandPalette";
+import { Hero } from "@/components/sections/Hero";
+import { Now } from "@/components/sections/Now";
+import { Products } from "@/components/sections/Products";
+import { Work } from "@/components/sections/Work";
+import { Process } from "@/components/sections/Process";
+import { Experience } from "@/components/sections/Experience";
+import { Testimonials } from "@/components/sections/Testimonials";
+import { Contact } from "@/components/sections/Contact";
+import { Footer } from "@/components/sections/Footer";
 
 export default function Home() {
   return (
     <>
-      <Nav />
       <main>
         <Hero />
-        <About />
-        <Skills />
-        <Projects />
+        <Now />
+        <Products />
+        <Work />
+        <Process />
         <Experience />
-        <Services />
         <Testimonials />
         <Contact />
       </main>
       <Footer />
-      <CommandPalette />
     </>
   );
 }
